@@ -1,0 +1,8 @@
+.env
+.venv/
+*.db
+!data/
+!data/news_notifications.db
+*.log
+__pycache__/
+*.pyc
