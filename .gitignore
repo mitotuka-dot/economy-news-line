@@ -3,6 +3,8 @@
 *.db
 !data/
 !data/news_notifications.db
+!data/x_reply_radar.db
 *.log
 __pycache__/
 *.pyc
+.pycache/
