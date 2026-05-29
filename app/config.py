@@ -46,7 +46,6 @@ def load_settings(validate: bool = True) -> Settings:
         missing = []
         for key, value in {
             "X_BEARER_TOKEN": settings.x_bearer_token,
-            "X_USER_ID": settings.x_user_id,
             "OPENAI_API_KEY": settings.openai_api_key,
         }.items():
             if not value:
