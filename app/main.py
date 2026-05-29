@@ -47,6 +47,11 @@ def run() -> int:
     try:
         accounts = resolve_usernames(x_client, usernames)
     except XApiError as exc:
+        if exc.status_code == 402:
+            LOG.error(
+                "X API credits are depleted. Add credits or enable billing in X Developer Portal."
+            )
+            return 0
         LOG.error("Failed to resolve usernames via X API: %s", exc)
         return 1
 

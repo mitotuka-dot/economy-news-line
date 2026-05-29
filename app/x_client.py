@@ -40,7 +40,7 @@ class XClient:
                 if attempt < 4:
                     time.sleep(2 * (attempt + 1))
                     continue
-            if response.status_code in {401, 403, 429}:
+            if response.status_code in {401, 402, 403, 429}:
                 raise XApiError(
                     f"X API {response.status_code}: {response.text[:500]}",
                     status_code=response.status_code,
