@@ -53,13 +53,19 @@ def load_watchlist(path: str = "watchlist.txt") -> list[str]:
 def resolve_usernames(client: XClient, usernames: list[str]) -> list[dict]:
     if not usernames:
         return []
-    payload = client.get(
-        "/users/by",
-        params={
-            "usernames": ",".join(usernames),
-            "user.fields": "id,name,username",
-        },
-    )
+    try:
+        payload = client.get(
+            "/users/by",
+            params={
+                "usernames": ",".join(usernames),
+                "user.fields": "id,name,username",
+            },
+        )
+    except XApiError as exc:
+        if exc.status_code != 500:
+            raise
+        LOG.warning("Bulk username lookup failed with 500. Falling back to single lookups.")
+        return resolve_usernames_one_by_one(client, usernames)
     users = []
     for item in payload.get("data", []):
         username = normalize_username(item["username"])
@@ -74,6 +80,29 @@ def resolve_usernames(client: XClient, usernames: list[str]) -> list[dict]:
     errors = payload.get("errors", [])
     if errors:
         LOG.warning("Some usernames could not be resolved: %s", errors)
+    return users
+
+
+def resolve_usernames_one_by_one(client: XClient, usernames: list[str]) -> list[dict]:
+    users = []
+    for username in usernames:
+        payload = client.get(
+            f"/users/by/username/{username}",
+            params={"user.fields": "id,name,username"},
+        )
+        item = payload.get("data")
+        if not item:
+            LOG.warning("Username could not be resolved: %s", username)
+            continue
+        normalized = normalize_username(item["username"])
+        users.append(
+            {
+                "user_id": item["id"],
+                "username": normalized,
+                "name": item.get("name", ""),
+                "category": category_for_username(normalized),
+            }
+        )
     return users
 
 
