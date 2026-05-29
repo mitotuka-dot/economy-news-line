@@ -12,7 +12,9 @@ BASE_URL = "https://api.x.com/2"
 
 
 class XApiError(RuntimeError):
-    pass
+    def __init__(self, message: str, status_code: int | None = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code
 
 
 class XClient:
@@ -24,21 +26,27 @@ class XClient:
         url = path if path.startswith("http") else f"{BASE_URL}{path}"
         headers = {"Authorization": f"Bearer {self.bearer_token}"}
         last_error = None
-        for attempt in range(2):
+        for attempt in range(5):
             response = requests.get(url, headers=headers, params=params, timeout=self.timeout)
-            if response.status_code == 429:
+            if response.status_code in {429, 500, 502, 503, 504}:
                 reset = response.headers.get("x-rate-limit-reset")
-                LOG.warning("X API rate limited. reset=%s body=%s", reset, response.text[:300])
-                if attempt == 0:
-                    time.sleep(2)
+                LOG.warning(
+                    "X API retryable error status=%s reset=%s attempt=%s body=%s",
+                    response.status_code,
+                    reset,
+                    attempt + 1,
+                    response.text[:300],
+                )
+                if attempt < 4:
+                    time.sleep(2 * (attempt + 1))
                     continue
             if response.status_code in {401, 403, 429}:
-                raise XApiError(f"X API {response.status_code}: {response.text[:500]}")
+                raise XApiError(
+                    f"X API {response.status_code}: {response.text[:500]}",
+                    status_code=response.status_code,
+                )
             if response.status_code >= 400:
                 last_error = f"X API {response.status_code}: {response.text[:500]}"
-                if attempt == 0:
-                    time.sleep(1)
-                    continue
-                raise XApiError(last_error)
+                raise XApiError(last_error, status_code=response.status_code)
             return response.json()
         raise XApiError(last_error or "X API request failed")
