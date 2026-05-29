@@ -56,11 +56,14 @@ def _parse_json(content: str) -> dict[str, Any]:
 
 
 class ReplyGenerator:
-    def __init__(self, api_key: str, model: str) -> None:
-        self.client = OpenAI(api_key=api_key)
+    def __init__(self, api_key: str, model: str, use_openai: bool = False) -> None:
+        self.client = OpenAI(api_key=api_key) if use_openai and api_key else None
         self.model = model
+        self.use_openai = use_openai and bool(api_key)
 
     def generate(self, tweet: dict) -> dict[str, Any]:
+        if not self.use_openai or self.client is None:
+            return generate_rule_based_reply(tweet)
         user_prompt = f"""
 投稿者: @{tweet['username']}
 カテゴリ: {tweet['category']}
@@ -87,4 +90,36 @@ relevance_score: {tweet['relevance_score']}
             return _parse_json(content)
         except Exception as exc:  # noqa: BLE001
             LOG.exception("OpenAI reply generation failed: %s", exc)
-            return dict(FALLBACK)
+            return generate_rule_based_reply(tweet)
+
+
+def generate_rule_based_reply(tweet: dict) -> dict[str, Any]:
+    text = tweet["text"]
+    relevance = int(tweet.get("relevance_score", 0))
+    engagement = int(tweet.get("engagement_score", 0))
+    category = tweet.get("category", "")
+    priority = "S" if relevance >= 60 or (category == "FAST_MARKET" and engagement >= 120) else "A"
+    theme = _detect_theme(text)
+    return {
+        "reply_priority": priority,
+        "recommended_reason": f"{theme}の話題で反応が伸びており、自然に補足コメントを入れやすいです。",
+        "why_trending": "いいねだけでなくリプ・引用も含めて反応があり、相場参加者の関心が集まっています。",
+        "reply_1": f"{theme}は短期の反応だけでなく、次の決算や見通しまでセットで見ておきたいですね。",
+        "reply_2": f"{theme}のニュース、相場の温度計が一段上がる材料になりそうですね。",
+        "reply_3": f"{theme}起点だと、関連セクターや周辺銘柄の反応もあわせて見ておきたいです。",
+    }
+
+
+def _detect_theme(text: str) -> str:
+    themes = [
+        ("半導体", ["半導体", "NVIDIA", "AI", "データセンター", "ディスコ", "レーザーテック", "アドバンテスト"]),
+        ("金利・為替", ["金利", "日銀", "FOMC", "CPI", "為替", "ドル円"]),
+        ("決算", ["決算", "上方修正", "下方修正", "営業利益"]),
+        ("日本株", ["日本株", "PER", "PBR", "高配当", "グロース", "バリュー"]),
+        ("個別株", ["フジクラ", "古河電工", "住友電工", "キオクシア", "SBI", "QBTS"]),
+    ]
+    lowered = text.lower()
+    for label, keywords in themes:
+        if any(keyword.lower() in lowered for keyword in keywords):
+            return label
+    return "相場"

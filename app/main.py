@@ -33,7 +33,11 @@ def build_x_url(username: str, tweet_id: str) -> str:
 def run() -> int:
     settings = load_settings(validate=True)
     x_client = XClient(settings.x_bearer_token, timeout=settings.request_timeout)
-    reply_generator = ReplyGenerator(settings.openai_api_key, settings.openai_model)
+    reply_generator = ReplyGenerator(
+        settings.openai_api_key,
+        settings.openai_model,
+        use_openai=settings.use_openai,
+    )
     line_client = LineClient(
         settings.line_channel_access_token, settings.line_user_id, settings.dry_run
     )

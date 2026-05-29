@@ -10,6 +10,7 @@ from app.following import load_watchlist
 from app.line_client import LineClient, format_notification
 from app.main import run
 from app.relevance import calculate_relevance_score
+from app.reply_generator import ReplyGenerator, generate_rule_based_reply
 from app.scoring import calculate_engagement_score, is_growing
 
 
@@ -30,6 +31,16 @@ def test_x_user_id_is_optional(monkeypatch):
     monkeypatch.setenv("DRY_RUN", "true")
     settings = load_settings(validate=True)
     assert settings.x_user_id == ""
+
+
+def test_openai_is_optional(monkeypatch):
+    monkeypatch.setenv("X_BEARER_TOKEN", "x-token")
+    monkeypatch.setenv("OPENAI_API_KEY", "")
+    monkeypatch.setenv("DRY_RUN", "true")
+    monkeypatch.setenv("USE_OPENAI", "false")
+    settings = load_settings(validate=True)
+    assert settings.use_openai is False
+    assert settings.openai_api_key == ""
 
 
 def test_engagement_score():
@@ -101,6 +112,31 @@ def test_dry_run_does_not_send_line(monkeypatch, capsys):
     client.send_notifications(["hello"])
     assert called is False
     assert "DRY_RUN LINE MESSAGE" in capsys.readouterr().out
+
+
+def test_rule_based_reply_keeps_notification_eligible():
+    tweet = {
+        "text": "NVIDIAと半導体、データセンター需要と決算IRが話題。フジクラも連想されそう",
+        "category": "FAST_MARKET",
+        "engagement_score": 137,
+        "relevance_score": 80,
+    }
+    result = generate_rule_based_reply(tweet)
+    assert result["reply_priority"] == "S"
+    assert "半導体" in result["reply_1"]
+
+
+def test_reply_generator_without_openai_uses_rule_based():
+    generator = ReplyGenerator("", "gpt-4.1-mini", use_openai=False)
+    result = generator.generate(
+        {
+            "text": "日銀と金利、ドル円が相場の焦点になっています",
+            "category": "FAST_MARKET",
+            "engagement_score": 100,
+            "relevance_score": 40,
+        }
+    )
+    assert result["reply_priority"] in {"S", "A"}
 
 
 def test_main_mock_dry_run_filters_b_and_notified(monkeypatch, tmp_path):

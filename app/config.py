@@ -20,6 +20,7 @@ class Settings:
     line_channel_access_token: str
     line_user_id: str
     dry_run: bool = True
+    use_openai: bool = False
     db_path: str = "data/x_reply_radar.db"
     openai_model: str = "gpt-4.1-mini"
     watchlist_path: str = "watchlist.txt"
@@ -36,6 +37,7 @@ def load_settings(validate: bool = True) -> Settings:
         line_channel_access_token=os.getenv("LINE_CHANNEL_ACCESS_TOKEN", "").strip(),
         line_user_id=os.getenv("LINE_USER_ID", "").strip(),
         dry_run=_as_bool(os.getenv("DRY_RUN"), default=True),
+        use_openai=_as_bool(os.getenv("USE_OPENAI"), default=False),
         db_path=os.getenv("DB_PATH", "data/x_reply_radar.db").strip(),
         openai_model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini").strip(),
         watchlist_path=os.getenv("WATCHLIST_PATH", "watchlist.txt").strip(),
@@ -44,10 +46,10 @@ def load_settings(validate: bool = True) -> Settings:
     )
     if validate:
         missing = []
-        for key, value in {
-            "X_BEARER_TOKEN": settings.x_bearer_token,
-            "OPENAI_API_KEY": settings.openai_api_key,
-        }.items():
+        required = {"X_BEARER_TOKEN": settings.x_bearer_token}
+        if settings.use_openai:
+            required["OPENAI_API_KEY"] = settings.openai_api_key
+        for key, value in required.items():
             if not value:
                 missing.append(key)
         if not settings.dry_run:

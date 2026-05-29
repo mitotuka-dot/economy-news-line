@@ -31,6 +31,7 @@ jobs:
           LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
           DRY_RUN: "false"
+          USE_OPENAI: "false"
           DB_PATH: data/x_reply_radar.db
       - name: Persist SQLite notification state
         run: |
