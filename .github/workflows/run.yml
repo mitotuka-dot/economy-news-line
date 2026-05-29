@@ -2,7 +2,8 @@ name: X Reply Radar
 
 on:
   schedule:
-    - cron: "17 * * * *"
+    # JST 06:17, 09:17, 12:17, 15:17, 18:17. No runs from 21:00 to 05:59 JST.
+    - cron: "17 0,3,6,9,21 * * *"
   workflow_dispatch:
 
 permissions:

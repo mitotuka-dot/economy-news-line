@@ -104,7 +104,8 @@ DRY_RUN=true
 
 `.github/workflows/run.yml` は設定済みです。
 
-- 毎時17分に実行
+- 日本時間の6:17、9:17、12:17、15:17、18:17に実行
+- 日本時間の21:00から5:59までは実行しない
 - 手動実行 `workflow_dispatch` に対応
 - Python 3.11で `python -m app.main` を実行
 - 実行後に `data/x_reply_radar.db` を自動コミットし、通知済み履歴を保存
