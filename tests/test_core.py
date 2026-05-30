@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from app.config import Settings
 from app.config import load_settings
@@ -9,6 +10,7 @@ from app.db import init_db, mark_notified, was_notified
 from app.following import load_watchlist
 from app.line_client import LineClient, format_notification
 from app.main import run
+from app.main import is_quiet_hours
 from app.relevance import calculate_relevance_score
 from app.reply_generator import ReplyGenerator, generate_rule_based_reply
 from app.scoring import calculate_engagement_score, is_growing
@@ -22,6 +24,14 @@ def test_watchlist_loads_usernames(tmp_path):
     path = tmp_path / "watchlist.txt"
     path.write_text("@xRINGx\nnews9111\n@aryarya\n@xRINGx\n", encoding="utf-8")
     assert load_watchlist(str(path)) == ["xringx", "aryarya"]
+
+
+def test_quiet_hours_jst_guard():
+    jst = ZoneInfo("Asia/Tokyo")
+    assert is_quiet_hours(datetime(2026, 5, 31, 21, 0, tzinfo=jst)) is True
+    assert is_quiet_hours(datetime(2026, 5, 31, 5, 59, tzinfo=jst)) is True
+    assert is_quiet_hours(datetime(2026, 5, 31, 6, 0, tzinfo=jst)) is False
+    assert is_quiet_hours(datetime(2026, 5, 31, 18, 17, tzinfo=jst)) is False
 
 
 def test_x_user_id_is_optional(monkeypatch):

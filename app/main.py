@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from app.config import load_settings
 from app.db import (
@@ -24,14 +25,26 @@ from app.x_client import XApiError, XClient
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 LOG = logging.getLogger(__name__)
+JST = ZoneInfo("Asia/Tokyo")
 
 
 def build_x_url(username: str, tweet_id: str) -> str:
     return f"https://x.com/{username}/status/{tweet_id}"
 
 
+def is_quiet_hours(now: datetime | None = None) -> bool:
+    current = now or datetime.now(JST)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=JST)
+    current_jst = current.astimezone(JST)
+    return current_jst.hour >= 21 or current_jst.hour < 6
+
+
 def run() -> int:
     settings = load_settings(validate=True)
+    if is_quiet_hours():
+        LOG.info("Quiet hours in JST. Skipping run without API calls or LINE notifications.")
+        return 0
     x_client = XClient(settings.x_bearer_token, timeout=settings.request_timeout)
     reply_generator = ReplyGenerator(
         settings.openai_api_key,
